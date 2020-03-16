@@ -29,7 +29,7 @@ from utils.vis_helper import draw_graph_list, draw_graph_list_separate
 from utils.data_parallel import DataParallel
 
 
-try:
+try: #这里在设置代码可打开的最大数据
   ###
   # workaround for solving the issue of multi-worker
   # https://github.com/pytorch/pytorch/issues/973
@@ -41,7 +41,7 @@ except:
   pass
 
 logger = get_logger('exp_logger')
-__all__ = ['GranRunner', 'compute_edge_ratio', 'get_graph', 'evaluate']
+__all__ = ['GranRunner', 'compute_edge_ratio', 'get_graph', 'evaluate'] #设置了所有可从外部访问的对象
 
 NPR = np.random.RandomState(seed=1234)
 
@@ -104,17 +104,18 @@ class GranRunner(object):
 
     assert self.use_gpu == True
 
-    if self.train_conf.is_resume:
+    if self.train_conf.is_resume: # 似乎是用于继续上一次没有完成的模型训练
       self.config.save_dir = self.train_conf.resume_dir
 
     ### load graphs
-    self.graphs = create_graphs(config.dataset.name, data_dir=config.dataset.data_path)
+    self.graphs = create_graphs(config.dataset.name, data_dir=config.dataset.data_path) #生成图。一种是随机图。另一种是loadDD和DB
     
     self.train_ratio = config.dataset.train_ratio
-    self.dev_ratio = config.dataset.dev_ratio
+    self.dev_ratio = config.dataset.dev_ratio #测试集的占比
     self.block_size = config.model.block_size
     self.stride = config.model.sample_stride
     self.num_graphs = len(self.graphs)
+    # 训练集、测试集、验证集的比例分别是0.6：0.2：0.2？
     self.num_train = int(float(self.num_graphs) * self.train_ratio)
     self.num_dev = int(float(self.num_graphs) * self.dev_ratio)
     self.num_test_gt = self.num_graphs - self.num_train
@@ -132,7 +133,7 @@ class GranRunner(object):
     self.graphs_dev = self.graphs[:self.num_dev]
     self.graphs_test = self.graphs[self.num_train:]
     
-    self.config.dataset.sparse_ratio = compute_edge_ratio(self.graphs_train)
+    self.config.dataset.sparse_ratio = compute_edge_ratio(self.graphs_train) #用边密度来测算图的稀疏程度
     logger.info('No Edges vs. Edges in training set = {}'.format(
         self.config.dataset.sparse_ratio))
 

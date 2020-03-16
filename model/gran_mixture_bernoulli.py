@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import numpy as np
 EPS = np.finfo(np.float32).eps
 
-__all__ = ['GRANMixtureBernoulli']
+__all__ = ['GRANMixtureBernoulli'] #加限制，从其他代码只能导入GRANMixtureBernoulli这一个模块
 
 
 class GNN(nn.Module):
@@ -35,11 +35,13 @@ class GNN(nn.Module):
     self.output_hidden_dim = output_hidden_dim
     self.graph_output_dim = graph_output_dim
 
+    # 对应公式6的GRU功能。
     self.update_func = nn.ModuleList([
         nn.GRUCell(input_size=self.msg_dim, hidden_size=self.node_state_dim)
         for _ in range(self.num_layer)
     ])
 
+    # 对应公式3，双层感知机，中间加一个Relu。m^r_i,j =f(h^r_i − h^r_j)
     self.msg_func = nn.ModuleList([
         nn.Sequential(
             *[
@@ -50,6 +52,7 @@ class GNN(nn.Module):
             ]) for _ in range(self.num_layer)
     ])
 
+    # 对应公式5，双层感知机，中间加一个Relu，最后一个softmax。a^r_i,j =Sigmoid(g(h^ ̃r_i −h^ ̃r_j))
     if self.has_attention:
       self.att_head = nn.ModuleList([
           nn.Sequential(
@@ -62,7 +65,9 @@ class GNN(nn.Module):
               ]) for _ in range(self.num_layer)
       ])
 
+    # 从所有节点的embedding输出图的embedding
     if self.has_graph_output:
+      # 这里计算的是每个节点对图embedding的attention，也就是贡献度
       self.graph_output_head_att = nn.Sequential(*[
           nn.Linear(self.node_state_dim, self.output_hidden_dim),
           nn.ReLU(),
@@ -70,30 +75,34 @@ class GNN(nn.Module):
           nn.Sigmoid()
       ])
 
+      # 基于各节点的attention，这是最终输出图embedding的function
       self.graph_output_head = nn.Sequential(
           *[nn.Linear(self.node_state_dim, self.graph_output_dim)])
 
-  def _prop(self, state, edge, edge_feat, layer_idx=0):
+  # 定义前面加了一个_，成为_prop，作用是声明一个私有变量，外部不允许访问，无实际影响。详见：https://www.cnblogs.com/wangshuyi/p/6096362.html
+  def _prop(self, state, edge, edge_feat, layer_idx=0): # GNN是多层堆叠的，layer_idx指明是第几层。state是所有节点的输入状态
     ### compute message
+    # 计算了每一条边的src和dst的节点feature的差值
     state_diff = state[edge[:, 0], :] - state[edge[:, 1], :]
-    if self.edge_feat_dim > 0:
+    if self.edge_feat_dim > 0: #这里的edge feature就是论文中的x_i，一个binary variable，指明这个节点是新增的还是既有的
       edge_input = torch.cat([state_diff, edge_feat], dim=1)
     else:
       edge_input = state_diff
 
+    # 计算message，但是还没有加attention
     msg = self.msg_func[layer_idx](edge_input)    
 
     ### attention on messages
     if self.has_attention:
       att_weight = self.att_head[layer_idx](edge_input)
-      msg = msg * att_weight
+      msg = msg * att_weight ###这是最终的msg
 
     ### aggregate message by sum
     state_msg = torch.zeros(state.shape[0], msg.shape[1]).to(state.device)
     scatter_idx = edge[:, [1]].expand(-1, msg.shape[1])
     state_msg = state_msg.scatter_add(0, scatter_idx, msg)
 
-    ### state update
+    ### state update。这里更新了一轮state
     state = self.update_func[layer_idx](state_msg, state)
     return state
 
@@ -182,7 +191,7 @@ class GRANMixtureBernoulli(nn.Module):
         nn.Linear(self.hidden_dim, self.num_mix_component),
         nn.LogSoftmax(dim=1))
 
-    if self.dimension_reduce:
+    if self.dimension_reduce: # 针对数据可能比较大的情况，首先对node feature进行降维
       self.embedding_dim = config.model.embedding_dim
       self.decoder_input = nn.Sequential(
           nn.Linear(self.max_num_nodes, self.embedding_dim))

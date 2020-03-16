@@ -1,0 +1,11 @@
+INFO  | 03/14/2020 04:42:53 PM | File run_exp.py           | Line 26    | Writing log file to exp/GRAN/GRANMixtureBernoulli_FIRSTMM_DB_2020-Mar-14-16-42-53_40887/log_exp_40887.txt
+INFO  | 03/14/2020 04:42:53 PM | File run_exp.py           | Line 27    | Exp instance id = 40887
+INFO  | 03/14/2020 04:42:53 PM | File run_exp.py           | Line 28    | Exp comment = None
+INFO  | 03/14/2020 04:42:53 PM | File run_exp.py           | Line 29    | Config =
+ERROR | 03/14/2020 04:42:53 PM | File run_exp.py           | Line 42    | Traceback (most recent call last):
+  File "run_exp.py", line 36, in main
+    runner = eval(config.runner)(config)
+  File "/Users/maqiwei/OneDrive/03 Codes/01 Research Codes/original GRAN/runner/gran_runner.py", line 105, in __init__
+    assert self.use_gpu == True
+AssertionError
+
